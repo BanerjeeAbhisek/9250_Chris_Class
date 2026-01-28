@@ -1,0 +1,188 @@
+---
+title: "Your Talk Title"
+author: "Abhisek Banerjee"
+
+format:
+  revealjs:
+    theme: [default, custom.scss]
+    css: styles.css
+
+    # Slide geometry
+    width: 1280
+    height: 720
+    margin: 0.05
+    center: false
+
+    # Navigation & behavior
+    transition: slide
+    background-transition: fade
+    slide-number: true
+    progress: true
+    controls: true
+    hash: true
+    preview-links: true
+    incremental: false
+    chalkboard: true
+    code-line-numbers: true
+
+    # Math rendering
+    html-math-method: katex
+
+    # Tiger-stripe background ONLY for title slide
+    title-slide-attributes:
+      data-background-image: "assets/tigerstripes.png"
+      data-background-size: "cover"
+      data-background-position: "center"
+
+    # Fonts & head includes
+    include-in-header:
+      text: |
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
+
+    # Footer + Home button
+    include-after-body:
+      text: |
+        <div class="mizzou-footer-bar">
+          <div class="mizzou-left">
+            <img src="assets/mizzou-logo.svg" alt="Mizzou logo">
+          </div>
+          <div class="mizzou-right">
+            Departpemt of Statistics / Class 9100
+          </div>
+        </div>
+
+        <a class="home-btn" href="#outline" title="Go to Outline" aria-label="Go to Outline">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M3 10.5L12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>
+          </svg>
+        </a>
+
+resources:
+  - styles.css
+  - assets
+---
+
+## Outline {#outline}
+
+<div class="toc-card">
+
+1. [Motivation](#motivation)  
+2. [Model Setup](#model-setup)  
+3. [Method](#method)  
+4. [Results](#results)  
+5. [Conclusion](#conclusion)
+
+</div>
+
+
+
+## Quarto {#motivation}
+
+Quarto enables you to weave together content and executable code into a finished presentation. To learn more about Quarto presentations see 
+
+$\beta = v_1$
+
+## Code
+
+When you click the **Render** button a presentation will be generated that includes both content and the output of embedded code. You can embed code like this:
+
+```{r}
+1 + 1
+```
+
+
+##  Gold Box test  {#model-setup}
+
+<br>
+
+<div class="mizzou-gold-box">
+
+This is an important takeaway  
+that I want the audience  
+to remember. $\beta$ 
+
+</div>
+
+
+## Code Example {#method}
+
+<div class="mizzou-code-box">
+```{r}
+#| echo: true
+x <- rnorm(100)
+mean(x)
+
+
+```
+</div>
+
+
+## Model Setup with incremantal {#results}
+
+::: {.incremental}
+- Linear regression framework
+- Gaussian noise assumption
+- Parameters estimated via MLE
+:::
+
+
+
+## Model Setup without incremantal {#conclusion}
+
+- Linear regression framework
+- Gaussian noise assumption
+- Parameters estimated via MLE
+
+
+
+## Model Setup
+
+- Data
+  - i.i.d. observations
+  - standardized covariates
+- Model
+  - linear predictor $x^\top \beta$
+  - Gaussian noise
+- Inference
+  - MLE / MAP
+  - uncertainty quantification
+
+
+<div class="mizzou-code-box">
+```{r eval=FALSE}
+#| echo: true
+x <- rnorm(100)
+median(x)
+
+
+```
+</div>
+  
+
+
+
+
+
+  
+
+
+
+
+
+##  {data-background-image="assets/tigerstripes.png" data-background-size="cover" data-background-position="center"}
+
+<div class="thankyou-slide">
+
+<div class="thankyou-content">
+
+Thank you for your attention!
+
+
+</div>
+
+</div>
+
+
