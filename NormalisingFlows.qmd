@@ -60,7 +60,7 @@ format:
             <img src="assets/mizzou-logo.svg" alt="Mizzou logo">
           </div>
           <div class="mizzou-right">
-            Departpemt of Statistics / Class 9100
+            Department of Statistics / Class 9100
           </div>
         </div>
 
