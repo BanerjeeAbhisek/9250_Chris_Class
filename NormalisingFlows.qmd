@@ -588,7 +588,7 @@ flow_path_anim = {
   return svg.node();
 }
 
-flow_path_anim
+
 ```
 
 ---
