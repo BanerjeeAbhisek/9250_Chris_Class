@@ -116,6 +116,9 @@
   background: var(--mizzou-gold) !important;
 }
 
+
+
+
 /* =========================================================
    TITLE SLIDE (Quarto auto title slide + tiger stripes)
    Background is set via YAML title-slide-attributes.
@@ -433,6 +436,32 @@
   color: #e6a800 !important;
   text-decoration: underline;
 }
+
+
+
+/*-- scss:rules --*/
+
+/* FORCE two-column grid inside Reveal slides */
+.reveal .slides section .two-col{
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 48px !important;
+  align-items: start !important;
+  width: 100% !important;
+}
+
+/* Ensure each column can shrink properly */
+.reveal .slides section .two-col > .col{
+  min-width: 0 !important;
+}
+
+/* Keep images from breaking layout */
+.reveal .slides section .two-col img{
+  width: 100% !important;
+  height: auto !important;
+  object-fit: contain;
+}
+
 
 
 /* =========================================================
