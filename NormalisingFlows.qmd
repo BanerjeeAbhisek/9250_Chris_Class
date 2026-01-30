@@ -1,5 +1,5 @@
 ---
-title: "Normalising Flows"
+title: "Normalizing Flows"
 author: "Abhisek Banerjee"
 from: markdown+raw_html
 execute:
