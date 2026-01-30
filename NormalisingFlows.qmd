@@ -8,7 +8,7 @@ execute:
 filters:
   - quarto
 
-# IMPORTANT:
+# IMPORTANT:    
 html-math-method: katex
 
 format:
@@ -112,7 +112,7 @@ $$
 is typically **intractable**.
 
 
-### Variational idea
+### Variational idea  
 
 Introduce a tractable approximation
 $$
