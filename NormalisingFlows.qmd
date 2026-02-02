@@ -95,9 +95,33 @@ resources:
 </div>
 
 
+## Introduction 
+
+- Many real-world distributions are:
+  - **non-Gaussian**, **skewed or heavy-tailed**, **multi-modal and correlated**
+- Classical models (Gaussian, mixtures) can be **too restrictive**
+- We want models that are:
+  - **Flexible**, **Exact likelihood**, **Efficient to train and sample**
+
+
+### Core Idea
+
+- Start with a **simple base distribution** $z_0 \sim \mathcal{N}(0, I)$
+- Apply a sequence of **invertible, differentiable transformations** $z_0 \xrightarrow{f_1} z_1 \xrightarrow{f_2} \cdots \xrightarrow{f_K} x$
+- The resulting distribution of $x$ can be **highly complex**
 
 
 
+### Why “Normalizing” Flow?
+
+- Each transformation **pushes probability mass**
+- The density evolves smoothly through the transformations
+- Using the **change-of-variables formula**, we get:
+  - Exact likelihoods & Tractable training via gradient descent
+
+
+
+---
 
 ## Motivation  {#motivation}
 
@@ -398,202 +422,19 @@ $$
 - Add flexibility through invertible transformations
 - Preserve tractable likelihoods and gradients
 
----
 
-## Finite Normalizing flows
-
-
-Let
-$$
-f:\mathbb{R}^d \to \mathbb{R}^d
-$$
-be a smooth, invertible map with inverse $f^{-1}$.
-
-If
-$$
-z \sim q(z),
-\qquad
-z' = f(z),
-$$
-then $z'$ has density
-$$
-q(z') = q(z)\left|\det\frac{\partial f^{-1}}{\partial z'}\right|
-      = q(z)\left|\det\frac{\partial f}{\partial z}\right|^{-1}.
-$$
----
-
-## Finite normalizing flows
-
-Rather than a single transformation, we compose many:
-
-$$
-z_K = f_K \circ f_{K-1} \circ \cdots \circ f_1(z_0),
-$$
-
-where
-$$
-z_0 \sim q_0(z_0).
-$$
-
-
-The resulting density is
-$$
-\log q_K(z_K)
-=
-\log q_0(z_0)
--
-\sum_{k=1}^K
-\log\left|
-\det\frac{\partial f_k}{\partial z_{k-1}}
-\right|.
-$$
-
----
-
-## Why this is called a *flow*
-
-- The sequence
-  $$
-  z_0 \rightarrow z_1 \rightarrow \cdots \rightarrow z_K
-  $$
-  traces a **path in latent space**
-
-- The corresponding sequence of densities
-  $$
-  q_0 \rightarrow q_1 \rightarrow \cdots \rightarrow q_K
-  $$
-  forms a **normalizing flow**
-
-<br>
-
-With increasing $K$, the density can become:
-- non-Gaussian
-- correlated
-- multi-modal
-
-```{ojs}
-flow_path_anim = {
-  const W = 920, H = 230, pad = 16;
-  const K = 5;                 // show z0..z5
-  const panelW = (W - 2*pad) / (K+1);
-
-  // sample base points (standard normal)
-  const n = 260;
-  const pts0 = d3.range(n).map(() => {
-    const u1 = Math.random(), u2 = Math.random();
-    const r = Math.sqrt(-2*Math.log(u1));
-    const a = 2*Math.PI*u2;
-    return [r*Math.cos(a), r*Math.sin(a)];
-  });
-
-  // simple "flow-like" warps (deterministic, invertible-looking)
-  const f1 = ([x,y]) => [x + 0.95*Math.tanh(1.1*y), y];                     // shear
-  const f2 = ([x,y]) => {
-    const th = 0.55*Math.tanh(0.8*x);                                      // local rotation
-    const c = Math.cos(th), s = Math.sin(th);
-    return [c*x - s*y, s*x + c*y];
-  };
-  const f3 = ([x,y]) => {
-    const r = Math.sqrt(x*x + y*y) + 1e-6;
-    const k = 0.75*Math.tanh(0.9*(r-1.1));                                 // radial twist
-    return [x + k*(-y), y + k*(x)];
-  };
-
-  const Fs = [p => p, f1, p => f2(f1(p)), p => f3(f2(f1(p))), p => f1(f3(f2(f1(p)))), p => f2(f1(f3(f2(f1(p)))))];
-
-  // precompute pts at each k (z_k)
-  const steps = d3.range(K+1).map(k => pts0.map(Fs[k]));
-
-  const xS = d3.scaleLinear().domain([-4,4]).range([pad, panelW - pad]);
-  const yS = d3.scaleLinear().domain([-4,4]).range([H - pad, pad]);
-
-  const svg = d3.create("svg")
-    .attr("viewBox", `0 0 ${W} ${H}`)
-    .style("width","100%")
-    .style("max-width","920px")
-    .style("height","230px")
-    .style("border","1px solid rgba(255,255,255,0.18)")
-    .style("border-radius","12px");
-
-  // panel frames + labels
-  for (let i=0; i<=K; i++){
-    const x0 = pad + i*panelW;
-
-    svg.append("rect")
-      .attr("x", x0 + 4).attr("y", 8)
-      .attr("width", panelW - 8).attr("height", H - 16)
-      .attr("rx", 12)
-      .attr("fill","transparent")
-      .attr("stroke","rgba(255,255,255,0.12)");
-
-    svg.append("text")
-      .attr("x", x0 + 12).attr("y", 26)
-      .attr("font-size", 13.5)
-      .attr("font-weight", 750)
-      .attr("opacity", 0.92)
-      .text(`z_${i}`);
-
-    if (i < K){
-      svg.append("text")
-        .attr("x", x0 + panelW - 6)
-        .attr("y", H/2 + 6)
-        .attr("font-size", 22)
-        .attr("opacity", 0.55)
-        .text("→");
-    }
-  }
-
-  // dots per panel (same indices, so we can interpolate)
-  const dotGroups = d3.range(K+1).map(i => {
-    const gx = svg.append("g").attr("transform", `translate(${pad + i*panelW},0)`);
-    return gx.selectAll("circle")
-      .data(pts0.map((p, idx) => ({idx})))
-      .join("circle")
-        .attr("r", 1.55)
-        .attr("opacity", 0.78);
-  });
-
-  const lerp = (a,b,t) => a + (b-a)*t;
-
-  function render(tms){
-    // stage cycles through transitions: z0->z1->...->zK
-    const speed = 1100;
-    const cycle = (tms / speed) % K;        // 0..K
-    const k = Math.floor(cycle);            // transition k -> k+1
-    const t = cycle - k;                    // 0..1
-
-    for (let i=0; i<=K; i++){
-      // each panel shows its final step, but panel i animates when it is the "current" step
-      let from = i, to = i;
-      if (i === k+1) { from = k; to = k+1; }   // animate the next panel filling in
-
-      const A = steps[from];
-      const B = steps[to];
-
-      dotGroups[i]
-        .attr("cx", d => {
-          const a = A[d.idx], b = B[d.idx];
-          return xS(lerp(a[0], b[0], t));
-        })
-        .attr("cy", d => {
-          const a = A[d.idx], b = B[d.idx];
-          return yS(lerp(a[1], b[1], t));
-        });
-    }
-
-    requestAnimationFrame(render);
-  }
-
-  requestAnimationFrame(render);
-  return svg.node();
-}
-
-
-```
 
 ---
 
 ## Expectations under a flow (LOTUS)
+Let
+$$
+f:\mathbb{R}^d \to \mathbb{R}^d
+$$
+Then,
+$$
+z_K = f_K \circ f_{K-1} \circ \cdots \circ f_1(z_0),
+$$
 
 A key property:
 
@@ -701,7 +542,7 @@ $$
 q_\phi(z \mid x) := q_K(z_K),
 $$
 
-where the transformations $f_k$ are parameterized by $\phi$
+where $f_k$ are the transformations.
 
 
 ### Key idea
@@ -719,6 +560,243 @@ $$
 $$
 
 where $\mathcal{T}_t$ defines continuous-time dynamics.
+
+
+---
+
+## Infinitestimal Flows: A Demo
+
+```{ojs}
+infinitesimal_flow_slider = {
+  const W = 920, H = 420, pad = 16;
+
+  // -----------------------------
+  // Controls
+  // -----------------------------
+  const nInput = Inputs.range([10, 10000], {
+    label: "Sample Size",
+    step: 10,
+    value: 1000
+  });
+
+  const tInput = Inputs.range([0, 1], {
+    label: "Flow time t",
+    step: 0.001,
+    value: 0.0
+  });
+
+  const speedInput = Inputs.range([0.0, 2.5], {
+    label: "Auto-play speed",
+    step: 0.05,
+    value: 0.0
+  });
+
+  const ui = html`
+<style>
+  .nf-controls {
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  }
+
+  .nf-controls label {
+    font-size: 11px !important;
+    font-weight: 500;
+    opacity: 0.75;
+  }
+
+  .nf-controls input[type="range"] {
+    height: 18px;
+  }
+
+  /* Default numeric boxes */
+  .nf-controls input[type="number"] {
+    font-size: 11px !important;
+    height: 22px;
+    width: 72px;
+    padding: 2px 4px;
+    box-sizing: border-box;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: nowrap;
+    text-align: right;
+  }
+
+  /* 👇 Make SAMPLE SIZE box wider */
+  .nf-controls .sample-size input[type="number"] {
+    width: 120px;
+  }
+
+  /* Smaller spinner arrows */
+  .nf-controls input[type="number"]::-webkit-inner-spin-button,
+  .nf-controls input[type="number"]::-webkit-outer-spin-button {
+    transform: scale(0.7);
+    margin: 0;
+  }
+</style>
+
+<div class="nf-controls"
+     style="display:grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap:12px;
+            max-width:${W}px;
+            align-items:end;">
+  <div class="sample-size">${nInput}</div>
+  <div>${tInput}</div>
+  <div>${speedInput}</div>
+</div>
+`;
+
+  // -----------------------------
+  // SVG
+  // -----------------------------
+  const svg = d3.create("svg")
+    .attr("viewBox", `0 0 ${W} ${H}`)
+    .style("width", "100%")
+    .style("max-width", `${W}px`)
+    .style("height", `${H}px`)
+    .style("border", "1px solid rgba(255,255,255,0.18)")
+    .style("border-radius", "12px");
+
+  svg.append("rect")
+    .attr("x", 0).attr("y", 0)
+    .attr("width", W).attr("height", H)
+    .attr("fill", "rgba(255,255,255,0.92)");
+
+  svg.append("text")
+    .attr("x", 14).attr("y", 28)
+    .attr("font-size", 16)
+    .attr("font-weight", 700)
+    .attr("fill", "rgba(0,0,0,0.82)")
+    .text("Infinitesimal Flow: points evolve continuously with time t");
+
+ 
+  const plot = svg.append("g");
+
+  // -----------------------------
+  // Scales
+  // -----------------------------
+  const xS = d3.scaleLinear().domain([-4, 4]).range([pad, W - pad]);
+  const yS = d3.scaleLinear().domain([-3.5, 3.5]).range([H - pad, 70]);
+
+  // grid
+  const grid = plot.append("g").attr("opacity", 0.18);
+  for (let gx = -4; gx <= 4; gx++)
+    grid.append("line")
+      .attr("x1", xS(gx)).attr("x2", xS(gx))
+      .attr("y1", yS(-3.5)).attr("y2", yS(3.5))
+      .attr("stroke", "black");
+
+  for (let gy = -3; gy <= 3; gy++)
+    grid.append("line")
+      .attr("x1", xS(-4)).attr("x2", xS(4))
+      .attr("y1", yS(gy)).attr("y2", yS(gy))
+      .attr("stroke", "black");
+
+  // -----------------------------
+  // Helpers
+  // -----------------------------
+  function randn() {
+    let u = 0, v = 0;
+    while (!u) u = Math.random();
+    while (!v) v = Math.random();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  }
+
+  function vField(t, x, y) {
+    const cx = 0.9 * Math.sin(2 * Math.PI * t);
+    const cy = 0.6 * Math.cos(2 * Math.PI * t);
+    const dx = x - cx, dy = y - cy;
+    const swirl = 1.05;
+    const squeeze = 0.65 * Math.sin(2 * Math.PI * t);
+    const bend = 0.35 * Math.tanh(x * y);
+    return [
+      -swirl * dy + squeeze * x + bend,
+       swirl * dx - squeeze * y - 0.25 * Math.tanh(x)
+    ];
+  }
+
+  function rk2Step(t, x, y, dt) {
+    const [k1x, k1y] = vField(t, x, y);
+    const xm = x + 0.5 * dt * k1x;
+    const ym = y + 0.5 * dt * k1y;
+    const [k2x, k2y] = vField(t + 0.5 * dt, xm, ym);
+    return [x + dt * k2x, y + dt * k2y];
+  }
+
+  function evolve(points0, tEnd) {
+    const dt = 0.01;
+    const steps = Math.max(1, Math.ceil(tEnd / dt));
+    const h = tEnd / steps;
+    let pts = points0.map(p => p.slice());
+    let t = 0;
+    for (let s = 0; s < steps; s++) {
+      for (let i = 0; i < pts.length; i++) {
+        const [x, y] = pts[i];
+        pts[i] = rk2Step(t, x, y, h);
+      }
+      t += h;
+    }
+    return pts;
+  }
+
+  // -----------------------------
+  // State + draw
+  // -----------------------------
+  let pts0 = [];
+  let circles = plot.append("g").selectAll("circle");
+
+  function resample(n) {
+    pts0 = d3.range(n).map(() => [randn(), 0.85 * randn()]);
+  }
+
+  function draw(n, t) {
+    if (pts0.length !== n) resample(n);
+    const ptsT = t === 0 ? pts0 : evolve(pts0, t);
+
+    circles = circles
+      .data(ptsT, (_, i) => i)
+      .join("circle")
+      .attr("r", 1.35)
+      .attr("opacity", 0.75)
+      .attr("cx", d => xS(d[0]))
+      .attr("cy", d => yS(d[1]));
+  }
+
+  draw(nInput.value, tInput.value);
+
+  nInput.addEventListener("input", () => {
+    resample(nInput.value);
+    draw(nInput.value, tInput.value);
+  });
+
+  tInput.addEventListener("input", () => {
+    draw(nInput.value, tInput.value);
+  });
+
+  let last = null;
+  function tick(ts) {
+    if (last === null) last = ts;
+    const dtms = ts - last;
+    last = ts;
+    if (speedInput.value > 0) {
+      let t = tInput.value + speedInput.value * dtms / 1000;
+      if (t > 1) t -= 1;
+      tInput.value = t;
+      draw(nInput.value, t);
+    }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+
+  return html`<div style="display:grid; gap:10px;">
+    ${ui}
+    ${svg.node()}
+  </div>`;
+}
+```
+
+
+
+
 
 
 ---
@@ -764,6 +842,404 @@ Also widely used in machine learning.
 
 :::
 :::
+
+---
+
+## Langevin vs Hamiltonian flows
+
+```{ojs}
+langevin_vs_hamiltonian_story4 = {
+  const W = 920, H = 380, pad = 18, panelW = W / 2;
+
+  // -------------------------------------------------
+  // Controls (stacked)
+  // -------------------------------------------------
+  const speed = Inputs.range([0, 3.0], { label: "Auto-play speed", step: 0.05, value: 1.4 });
+  const noise = Inputs.range([0, 1.0], { label: "Langevin noise (shake)", step: 0.02, value: 0.45 });
+  const friction = Inputs.range([0, 0.25], { label: "Hamiltonian friction (0≈HMC ideal)", step: 0.01, value: 0.03 });
+
+  // NEW: cycle length for "uphill → downhill" repeats
+  const cycleSeconds = Inputs.range([2, 12], { label: "Reset cycle (seconds): re-drop particles uphill", step: 1, value: 6 });
+
+  const ui = html`
+<style>
+  .flow-controls { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+  .flow-controls .row { display:block; margin: 0 0 8px 0; }
+  .flow-controls label { font-size: 11px; opacity: 0.75; }
+  .flow-controls input[type="number"] { font-size: 11px; width: 92px; height: 22px; }
+  .flow-controls input[type="range"] { height: 18px; width: 100%; }
+</style>
+<div class="flow-controls" style="max-width:${W}px;">
+  <div class="row">${speed}</div>
+  <div class="row">${noise}</div>
+  <div class="row">${friction}</div>
+  <div class="row">${cycleSeconds}</div>
+</div>`;
+
+  // -------------------------------------------------
+  // SVG + panels
+  // -------------------------------------------------
+  const svg = d3.create("svg")
+    .attr("viewBox", `0 0 ${W} ${H}`)
+    .style("width", "100%")
+    .style("max-width", `${W}px`)
+    .style("height", `${H}px`)
+    .style("border", "1px solid rgba(255,255,255,0.18)")
+    .style("border-radius", "12px")
+    .style("background", "rgba(255,255,255,0.96)");
+
+  const gL = svg.append("g").attr("transform", `translate(0,0)`);
+  const gR = svg.append("g").attr("transform", `translate(${panelW},0)`);
+
+  svg.append("line")
+    .attr("x1", panelW).attr("x2", panelW)
+    .attr("y1", 0).attr("y2", H)
+    .attr("stroke", "rgba(0,0,0,0.10)");
+
+  gL.append("text")
+    .attr("x", 14).attr("y", 24)
+    .attr("font-size", 16).attr("font-weight", 750)
+    .text("Langevin: downhill drift + random shaking");
+
+  gR.append("text")
+    .attr("x", 14).attr("y", 24)
+    .attr("font-size", 16).attr("font-weight", 750)
+    .text("Hamiltonian: momentum (smooth, long moves)");
+
+  gL.append("text")
+    .attr("x", 14).attr("y", 46)
+    .attr("font-size", 12).attr("opacity", 0.70)
+    .text("drift = −∇U(z) (downhill), noise = shake  → repeated resets show “roll down”");
+
+  gR.append("text")
+    .attr("x", 14).attr("y", 46)
+    .attr("font-size", 12).attr("opacity", 0.70)
+    .text("leapfrog on U(z) with momentum p (inertia) → long, smooth descents");
+
+  // -------------------------------------------------
+  // Scales
+  // -------------------------------------------------
+  const xDom = [-3.6, 3.6], yDom = [-2.9, 2.9];
+  const xS = d3.scaleLinear().domain(xDom).range([pad, panelW - pad]);
+  const yS = d3.scaleLinear().domain(yDom).range([H - pad, 70]);
+
+  // -------------------------------------------------
+  // Helpers
+  // -------------------------------------------------
+  function randn() {
+    let u = 0, v = 0;
+    while (!u) u = Math.random();
+    while (!v) v = Math.random();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  }
+  const clamp = (a, lo, hi) => Math.max(lo, Math.min(hi, a));
+
+  // Strong bowl so “downhill” is visually clear; high density ~ exp(-U)
+  function U(x, y) {
+    const bowl = 0.60 * (x * x + 1.35 * y * y);
+    const ripples = 0.18 * Math.sin(1.7 * x) * Math.cos(1.25 * y);
+    return bowl + ripples;
+  }
+  function gradU(x, y) {
+    const e = 1e-3;
+    const ux = (U(x + e, y) - U(x - e, y)) / (2 * e);
+    const uy = (U(x, y + e) - U(x, y - e)) / (2 * e);
+    return [ux, uy];
+  }
+
+  // -------------------------------------------------
+  // Background: density shading + contours
+  // -------------------------------------------------
+  function drawDensity(group) {
+    const nx = 140, ny = 100;
+
+    const Uvals = new Array(nx * ny);
+    let k = 0, umin = +Infinity, umax = -Infinity;
+
+    for (let j = 0; j < ny; j++) {
+      const yy = d3.interpolate(yDom[0], yDom[1])(j / (ny - 1));
+      for (let i = 0; i < nx; i++) {
+        const xx = d3.interpolate(xDom[0], xDom[1])(i / (nx - 1));
+        const u = U(xx, yy);
+        Uvals[k++] = u;
+        if (u < umin) umin = u;
+        if (u > umax) umax = u;
+      }
+    }
+
+    const plotX0 = pad, plotY0 = 70;
+    const plotW = panelW - 2 * pad;
+    const plotH = (H - pad) - 70;
+
+    const cellW = plotW / (nx - 1);
+    const cellH = plotH / (ny - 1);
+
+    const shade = group.append("g").attr("opacity", 0.22);
+    k = 0;
+    for (let j = 0; j < ny - 1; j++) {
+      for (let i = 0; i < nx - 1; i++) {
+        const u = Uvals[k++];
+        const t = (u - umin) / (umax - umin + 1e-12);
+        const alpha = 1 - t; // darker = higher density
+        shade.append("rect")
+          .attr("x", plotX0 + i * cellW)
+          .attr("y", plotY0 + j * cellH)
+          .attr("width", cellW + 0.2)
+          .attr("height", cellH + 0.2)
+          .attr("fill", `rgba(0,0,0,${0.55 * alpha})`);
+      }
+      k++;
+    }
+
+    const thresholds = d3.range(0.8, 10.0, 0.60);
+    const cont = d3.contours().size([nx, ny]).thresholds(thresholds)(Uvals);
+
+    const path = d3.geoPath(
+      d3.geoIdentity()
+        .scale(plotW / (nx - 1))
+        .translate([plotX0, plotY0])
+    );
+
+    group.append("g")
+      .attr("opacity", 0.22)
+      .selectAll("path")
+      .data(cont)
+      .join("path")
+        .attr("d", path)
+        .attr("fill", "none")
+        .attr("stroke", "rgba(0,0,0,0.45)")
+        .attr("stroke-width", 1);
+  }
+
+  drawDensity(gL);
+  drawDensity(gR);
+
+  function frame(group) {
+    group.append("rect")
+      .attr("x", pad).attr("y", 70)
+      .attr("width", panelW - 2 * pad)
+      .attr("height", (H - pad) - 70)
+      .attr("fill", "none")
+      .attr("stroke", "rgba(0,0,0,0.12)")
+      .attr("rx", 8);
+  }
+  frame(gL); frame(gR);
+
+  // -------------------------------------------------
+  // Particle init: start "uphill" (far from center)
+  // -------------------------------------------------
+  const N = 20;
+  const trailLen = 60;
+
+  function sampleUphill() {
+    const ang = 2 * Math.PI * Math.random();
+    const r = 2.6 + 0.6 * Math.random(); // far away
+    const x = r * Math.cos(ang) + 0.20 * randn();
+    const y = 0.95 * r * Math.sin(ang) + 0.20 * randn();
+    return [clamp(x, xDom[0] + 0.1, xDom[1] - 0.1), clamp(y, yDom[0] + 0.1, yDom[1] - 0.1)];
+  }
+
+  let zL, zR, pR, trailL, trailR;
+
+  function resetAll() {
+    zL = d3.range(N).map(sampleUphill);
+    zR = d3.range(N).map(sampleUphill);
+
+    // Hamiltonian momentum: strong so motion is obvious immediately
+    pR = d3.range(N).map(() => [1.8 * randn(), 1.8 * randn()]);
+
+    trailL = zL.map(p => [p.slice()]);
+    trailR = zR.map(p => [p.slice()]);
+  }
+  resetAll();
+
+  // -------------------------------------------------
+  // Layers
+  // -------------------------------------------------
+  const trailsGroupL = gL.append("g");
+  const trailsGroupR = gR.append("g");
+
+  const dotsL = gL.append("g").selectAll("circle").data(d3.range(N)).join("circle")
+    .attr("r", 3).attr("opacity", 0.92);
+
+  const dotsR = gR.append("g").selectAll("circle").data(d3.range(N)).join("circle")
+    .attr("r", 3).attr("opacity", 0.92);
+
+  const arrowsR = gR.append("g").selectAll("line").data(d3.range(N)).join("line")
+    .attr("stroke", "rgba(0,0,0,0.40)")
+    .attr("stroke-width", 1.7)
+    .attr("stroke-linecap", "round");
+
+  const driftArrowsL = gL.append("g").selectAll("line").data(d3.range(N)).join("line")
+    .attr("stroke", "rgba(0,0,0,0.35)")
+    .attr("stroke-width", 1.2)
+    .attr("stroke-linecap", "round")
+    .attr("opacity", 0.75);
+
+  const line = d3.line()
+    .x(d => xS(d[0]))
+    .y(d => yS(d[1]));
+
+  function render() {
+    trailsGroupL.selectAll("path")
+      .data(trailL)
+      .join("path")
+        .attr("d", d => line(d))
+        .attr("fill", "none")
+        .attr("stroke", "rgba(0,0,0,0.22)")
+        .attr("stroke-width", 1.2);
+
+    trailsGroupR.selectAll("path")
+      .data(trailR)
+      .join("path")
+        .attr("d", d => line(d))
+        .attr("fill", "none")
+        .attr("stroke", "rgba(0,0,0,0.22)")
+        .attr("stroke-width", 1.2);
+
+    dotsL
+      .attr("cx", i => xS(zL[i][0]))
+      .attr("cy", i => yS(zL[i][1]));
+
+    dotsR
+      .attr("cx", i => xS(zR[i][0]))
+      .attr("cy", i => yS(zR[i][1]));
+
+    // Langevin drift arrows: -∇U (downhill)
+    const driftScale = 0.26;
+    driftArrowsL
+      .attr("x1", i => xS(zL[i][0]))
+      .attr("y1", i => yS(zL[i][1]))
+      .attr("x2", i => {
+        const [ux, uy] = gradU(zL[i][0], zL[i][1]);
+        return xS(zL[i][0] - driftScale * ux);
+      })
+      .attr("y2", i => {
+        const [ux, uy] = gradU(zL[i][0], zL[i][1]);
+        return yS(zL[i][1] - driftScale * uy);
+      });
+
+    // Hamiltonian momentum arrows
+    const arrowScale = 0.22;
+    arrowsR
+      .attr("x1", i => xS(zR[i][0]))
+      .attr("y1", i => yS(zR[i][1]))
+      .attr("x2", i => xS(zR[i][0] + arrowScale * pR[i][0]))
+      .attr("y2", i => yS(zR[i][1] + arrowScale * pR[i][1]));
+  }
+
+  // -------------------------------------------------
+  // Dynamics
+  // -------------------------------------------------
+  function step(dt) {
+    const sig = +noise.value;
+    const gam = +friction.value;
+
+    // Langevin: roll downhill + shake
+    for (let i = 0; i < N; i++) {
+      let [x, y] = zL[i];
+      const [ux, uy] = gradU(x, y);
+
+      const driftStrength = 1.25; // strong inward drift so “uphill→downhill” is obvious
+      x += -driftStrength * dt * ux + Math.sqrt(2 * dt) * sig * randn();
+      y += -driftStrength * dt * uy + Math.sqrt(2 * dt) * sig * randn();
+
+      x = clamp(x, xDom[0] + 0.05, xDom[1] - 0.05);
+      y = clamp(y, yDom[0] + 0.05, yDom[1] - 0.05);
+
+      zL[i] = [x, y];
+      trailL[i].push([x, y]);
+      if (trailL[i].length > trailLen) trailL[i].shift();
+    }
+
+    // Hamiltonian: leapfrog (smooth) + tiny friction, reflect boundaries
+    for (let i = 0; i < N; i++) {
+      let [x, y] = zR[i];
+      let [px, py] = pR[i];
+
+      // p half-step
+      let [ux, uy] = gradU(x, y);
+      px += -0.5 * dt * ux;
+      py += -0.5 * dt * uy;
+
+      // z full-step
+      x += dt * px;
+      y += dt * py;
+
+      // reflect boundaries
+      if (x < xDom[0]) { x = xDom[0] + (xDom[0] - x); px *= -1; }
+      if (x > xDom[1]) { x = xDom[1] - (x - xDom[1]); px *= -1; }
+      if (y < yDom[0]) { y = yDom[0] + (yDom[0] - y); py *= -1; }
+      if (y > yDom[1]) { y = yDom[1] - (y - yDom[1]); py *= -1; }
+
+      // p half-step
+      [ux, uy] = gradU(x, y);
+      px += -0.5 * dt * ux;
+      py += -0.5 * dt * uy;
+
+      // friction
+      px *= (1 - gam);
+      py *= (1 - gam);
+
+      // keep motion visible
+      const pnorm = Math.sqrt(px * px + py * py);
+      if (pnorm < 0.22) {
+        px += 1.2 * randn();
+        py += 1.2 * randn();
+      }
+
+      zR[i] = [x, y];
+      pR[i] = [px, py];
+
+      trailR[i].push([x, y]);
+      if (trailR[i].length > trailLen) trailR[i].shift();
+    }
+  }
+
+  // -------------------------------------------------
+  // Auto-play loop with periodic "uphill reset"
+  // This creates: uphill → downhill, then reset uphill → downhill, ...
+  // -------------------------------------------------
+  let last = null;
+  let phase = 0; // seconds into current cycle
+
+  function tick(ts) {
+    if (last == null) last = ts;
+    const dtms = ts - last;
+    last = ts;
+
+    const s = +speed.value;
+    const dtSec = (dtms / 1000) * s;
+    const dt = 0.012 * (dtms / 16.67) * s; // integration step
+
+    // update phase and reset periodically
+    phase += dtSec;
+    const T = +cycleSeconds.value;
+
+    if (phase >= T) {
+      phase = 0;
+      resetAll();      // <-- this gives the repeated “uphill → downhill” behavior
+    }
+
+    // integrate with a couple substeps for smoothness
+    const sub = 2;
+    for (let k = 0; k < sub; k++) step(dt / sub);
+
+    render();
+    requestAnimationFrame(tick);
+  }
+
+  render();
+  requestAnimationFrame(tick);
+
+  return html`<div style="display:grid; gap:10px;">
+    ${ui}
+    ${svg.node()}
+  </div>`;
+}
+```
+
+
 
 ---
 
@@ -817,7 +1293,7 @@ $$
 
 ### Consequences
 
-Determinant computed in **\(O(d)\) time**
+Determinant computed in **$O(d)$ time**
 
 Density is tractable:
 $\log q_K(z_K)
@@ -1119,6 +1595,8 @@ We consider a generative model with:
   $$
 
 - Dataset of size $N$  $x_{1:N} = (x_1,\ldots,x_N)$
+  - Fixed size $N$
+  - Varying Size   $N$
 
 <br>
 
@@ -1151,7 +1629,7 @@ p_\phi(\theta \mid x) \approx p(\theta \mid x)
 $$
 using an invertible neural network
 $$
-\theta = f_\phi(z; x),
+\theta = f_\phi(z| x),
 \qquad
 z \sim \mathcal{N}(0, I).
 $$
@@ -1166,7 +1644,7 @@ p_\phi(\theta \mid x)
 =
 p(z)\,
 \left|
-\det \frac{\partial f_\phi(z;x)}{\partial \theta}
+\det \frac{\partial f_\phi(z|x)}{\partial \theta}
 \right|^{-1}.
 $$
 
@@ -1281,74 +1759,7 @@ $$
 \log \left|\det J_{f_k}\right|.
 $$
 
-## Affine coupling blocks (ACB)
-
-Split input into two parts:
-$$
-u = (u_1, u_2).
-$$
-
-Forward map:
-$$
-\begin{aligned}
-v_1 &= u_1 \odot \exp(s_1(u_2)) + t_1(u_2), \\
-v_2 &= u_2 \odot \exp(s_2(v_1)) + t_2(v_1).
-\end{aligned}
-$$
-
-
-
-Inverse map exists in closed form:
-$$
-u = f^{-1}(v).
-$$
-
-
-
-### Key properties
-
-- Determinant is cheap
-- Internal networks need **not** be invertible
-
-
-
-## Summary network: why do we need it?
-
-In practice, the number of observations varies:
-- different dataset sizes $N$
-- different numbers of time points / measurements
-- redundancy in raw observations
-
-<br><br>
-
-So instead of feeding raw $x_{1:N}$ directly into the cINN, we learn a fixed-size summary:
-$$
-\tilde{x} = h_\psi(x_{1:N}).
-$$
-
-<br><br>
-<div class="mizzou-code-box">
-**Goal:** avoid information loss from handcrafted summaries, and learn informative statistics directly from data.
-</div>
-
-## How $\tilde{x}$ enters the invertible network
-
-<br>
-
-Rather than feeding raw $x_{1:N}$ into each affine coupling block (ACB),
-we condition the internal networks on the learned summary $\tilde{x}$.
-
-<br><br>
-
-For an ACB splitting $u=(u_1,u_2)$, the forward map becomes:
-$$
-v_1 = u_1 \odot \exp(s_1(u_2,\tilde{x})) + t_1(u_2,\tilde{x}),
-$$
-$$
-v_2 = u_2 \odot \exp(s_2(v_1,\tilde{x})) + t_2(v_1,\tilde{x}).
-$$
-
-This keeps the overall map invertible, while injecting data information via $\tilde{x}$.
+---
 
 ## Amortized Bayesian Inference With the BayesFlow Method {#AlgoBayesFlow}
 
@@ -1478,18 +1889,18 @@ bayesflow_algo_anim575 = {
   const train = [
     {id:"N",   x:70,   y:yT, w:210, h:92, title:"1) Sample N",   line1:"N ~ U(Nmin, Nmax)"},
     {id:"th",  x:320,  y:yT, w:210, h:92, title:"2) Sample θ",   line1:"θ^(m) ~ p(θ)"},
-    {id:"sim", x:570,  y:yT, w:230, h:92, title:"3) Simulate x", line1:"x_i = g(θ^(m), ξ_i)", line2:"for i = 1..N"},
-    {id:"sum", x:840,  y:yT, w:210, h:92, title:"4) Summary",    line1:"x̃ = hψ(x₁:N)"},
+    {id:"sim", x:570,  y:yT, w:230, h:92, title:"3) Simulate x", line1:"ξ_i ~ p(ξ), x_i = g(θ^(m), ξ_i)", line2:"for i = 1..N"},
+    {id:"sum", x:840,  y:yT, w:210, h:92, title:"4) Summary",    line1:"x̃ = hψ(x1:N)"},
     {id:"fwd", x:1090, y:yT, w:210, h:92, title:"5) Flow (→)",   line1:"z = fϕ(θ; x̃)"},
   ];
 
   const infer = [
-    {id:"obs", x:70,   y:yI, w:250, h:92, title:"Inference input", line1:"observed x₁:N^o"},
-    {id:"sumo",x:360,  y:yI, w:210, h:92, title:"Summary",         line1:"x̃^o = hψ(x₁:N^o)"},
+    {id:"obs", x:70,   y:yI, w:250, h:92, title:"Inference input", line1:"observed x1:N"},
+    {id:"sumo",x:360,  y:yI, w:210, h:92, title:"Summary",         line1:"x̃ = hψ(x1:N)"},
     {id:"z",   x:610,  y:yI, w:210, h:92, title:"Sample latent",   line1:"z(l) ~ N(0, I)"},
-    {id:"inv", x:860,  y:yI, w:250, h:92, title:"Flow (←)",        line1:"θ^(l) = fϕ(z(l); x̃^o)"},
+    {id:"inv", x:860,  y:yI, w:250, h:92, title:"Flow (←)",        line1:"θ^(l) = fϕ(z(l); x̃)"},
     // tweak return to be explicit (optional)
-    {id:"out", x:1150, y:yI, w:160, h:92, title:"Return",          line1:"{θ^(l)}_{l=1}^L"},
+    {id:"out", x:1150, y:yI, w:160, h:92, title:"Return",          line1:"θ^(l) for L = 1..L"},
   ];
 
   const upd = {
@@ -1755,6 +2166,85 @@ $$
 
 **Examples:** NICE, RealNVP, Glow
 
+
+
+## Autoregressive and Spline Flows
+
+### Autoregressive flows
+
+Each dimension depends on previous ones:
+$$
+y_t = h\big(x_t;\,\Theta_t(x_{1:t-1})\big)
+$$
+
+- **MAF**: fast density evaluation  
+- **IAF**: fast sampling  
+
+<br> <br>
+
+### Neural spline flows
+
+Replace affine maps with **monotone splines**:
+
+- Rational quadratic splines
+- Piecewise polynomial transforms
+
+**Key insight:**
+> Nonlinear monotone transformations dramatically increase expressiveness
+without sacrificing invertibility.
+
+---
+
+## Continuous-Time Normalizing Flows
+
+Flows can be defined as **continuous dynamics**:
+$$
+\frac{dx(t)}{dt} = F(x(t), t)
+$$
+
+Density evolves via:
+$$
+\frac{d}{dt} \log p(x(t))
+=
+-\mathrm{Tr}\!\left(\frac{\partial F}{\partial x}\right)
+$$
+
+**Representative methods:**
+
+- Neural ODE flows
+- FFJORD (stochastic trace estimator)
+
+**Advantages:**
+
+- No explicit Jacobian determinant
+- Parameter-efficient
+- Smooth transformations
+
+---
+
+## Summary of Normalizing Flow Families (I) {#SummNormFlow}
+
+| Flow family | Core transformation | Key idea | Strengths | Limitations |
+|------------|--------------------|----------|-----------|-------------|
+| Elementwise bijections | $$z_i = f_i(x_i)$$ | Independent nonlinear transforms | Simple, cheap Jacobian | No variable mixing |
+| Linear flows | $$z = Ax + b$$ | Global affine transform | Mixes variables, exact inverse | Limited expressiveness |
+| Planar flows | $$z = x + u\,h(w^\top x + b)$$ | Rank-1 nonlinear deformation | Flexible, fast Jacobian | Inverse often intractable |
+| Radial flows | $$z = x + \beta\,h(\alpha, r)(x - x_0)$$ | Radial contraction/expansion | Can induce multimodality | Hard inverse |
+| Coupling flows | $$z_{1:d}=x_{1:d}$$ $$z_{d+1:D}=x_{d+1:D}\odot e^{s(x_{1:d})}+t(x_{1:d})$$ | Split variables, conditional transforms | Exact inverse, scalable | Needs good coupling design |
+
+
+## Summary of Normalizing Flow Families (II)
+<br><br>
+
+| Flow family | Core transformation | Key idea | Strengths | Limitations |
+|------------|--------------------|----------|-----------|-------------|
+| Autoregressive flows | $$z_i = f_i(x_i; x_{<i})$$ | Sequential conditional transforms | Highly expressive | Slow sampling or likelihood |
+| Residual flows | $$z = x + f(x)$$ | Invertible residual networks | Deep & flexible | Requires Lipschitz control |
+| Continuous (Neural ODE) flows | $$\frac{dz(t)}{dt} = f(z(t), t)$$ | Continuous-time transformation | Memory efficient, smooth | Expensive ODE solves |
+
+---
+
+
 ## Overview of Coupling flows
 
 ```{ojs}
@@ -1793,11 +2283,7 @@ nf_methods_timeline = {
     .attr("fill","white")
     .attr("stroke","rgba(0,0,0,0.25)");
 
-  svg.append("text")
-    .attr("x", 22).attr("y", 18)
-    .attr("font-size", 12)
-    .attr("opacity", 0.8)
-    .text("IEEE TRANSACTIONS ON PATTERN ANALYSIS AND MACHINE INTELLIGENCE");
+  
 
   // ---------- left-side taxonomy ----------
   const items = [
@@ -1955,79 +2441,6 @@ nf_methods_timeline = {
 }
 ```
 
-
-
-## Autoregressive and Spline Flows
-
-### Autoregressive flows
-
-Each dimension depends on previous ones:
-$$
-y_t = h\big(x_t;\,\Theta_t(x_{1:t-1})\big)
-$$
-
-- **MAF**: fast density evaluation  
-- **IAF**: fast sampling  
-
-<br> <br><br>
-
-### Neural spline flows
-
-Replace affine maps with **monotone splines**:
-- Rational quadratic splines
-- Piecewise polynomial transforms
-
-**Key insight:**
-> Nonlinear monotone transformations dramatically increase expressiveness
-without sacrificing invertibility.
-
----
-
-## Continuous-Time Normalizing Flows
-
-Flows can be defined as **continuous dynamics**:
-$$
-\frac{dx(t)}{dt} = F(x(t), t)
-$$
-
-Density evolves via:
-$$
-\frac{d}{dt} \log p(x(t))
-=
--\mathrm{Tr}\!\left(\frac{\partial F}{\partial x}\right)
-$$
-
-**Representative methods:**
-- Neural ODE flows
-- FFJORD (stochastic trace estimator)
-
-**Advantages:**
-- No explicit Jacobian determinant
-- Parameter-efficient
-- Smooth transformations
-
----
-
-## Summary of Normalizing Flow Families (I) {#SummNormFlow}
-
-| Flow family | Core transformation | Key idea | Strengths | Limitations |
-|------------|--------------------|----------|-----------|-------------|
-| Elementwise bijections | $$z_i = f_i(x_i)$$ | Independent nonlinear transforms | Simple, cheap Jacobian | No variable mixing |
-| Linear flows | $$z = Ax + b$$ | Global affine transform | Mixes variables, exact inverse | Limited expressiveness |
-| Planar flows | $$z = x + u\,h(w^\top x + b)$$ | Rank-1 nonlinear deformation | Flexible, fast Jacobian | Inverse often intractable |
-| Radial flows | $$z = x + \beta\,h(\alpha, r)(x - x_0)$$ | Radial contraction/expansion | Can induce multimodality | Hard inverse |
-| Coupling flows | $$z_{1:d}=x_{1:d}$$ $$z_{d+1:D}=x_{d+1:D}\odot e^{s(x_{1:d})}+t(x_{1:d})$$ | Split variables, conditional transforms | Exact inverse, scalable | Needs good coupling design |
-
-
-## Summary of Normalizing Flow Families (II)
-<br><br>
-
-| Flow family | Core transformation | Key idea | Strengths | Limitations |
-|------------|--------------------|----------|-----------|-------------|
-| Autoregressive flows | $$z_i = f_i(x_i; x_{<i})$$ | Sequential conditional transforms | Highly expressive | Slow sampling or likelihood |
-| Residual flows | $$z = x + f(x)$$ | Invertible residual networks | Deep & flexible | Requires Lipschitz control |
-| Continuous (Neural ODE) flows | $$\frac{dz(t)}{dt} = f(z(t), t)$$ | Continuous-time transformation | Memory efficient, smooth | Expensive ODE solves |
-
 ---
 
 ## Future Directions of Normalizing Flows {#FutureDir}
@@ -2046,6 +2459,30 @@ $$
 1.  Riemannian Manifold Flows
 2.  Adaptive Step Size ODEs
 3.  Implicit Regularization Techniques
+
+---
+
+## References
+
+<br>
+
+These are links to a few papers on Normalizing flows I found interesting:
+<br><br> <br>
+
+[Rezende, D., & Mohamed, S. (2015, June). Variational inference with normalizing flows. In International conference on machine learning (pp. 1530-1538). PMLR.](https://nam02.safelinks.protection.outlook.com/?url=https%3A%2F%2Fproceedings.mlr.press%2Fv37%2Frezende15&data=05%7C02%7Cabt7v%40missouri.edu%7C356f0a680e0f4875982a08de5e054c17%7Ce3fefdbef7e9401ba51a355e01b05a89%7C0%7C0%7C639051573990741510%7CUnknown%7CTWFpbGZsb3d8eyJFbXB0eU1hcGkiOnRydWUsIlYiOiIwLjAuMDAwMCIsIlAiOiJXaW4zMiIsIkFOIjoiTWFpbCIsIldUIjoyfQ%3D%3D%7C0%7C%7C%7C&sdata=kXt%2B2DzXfF7rURnaMaKL3PaBoXrRH4SBv4ydIPcwDMg%3D&reserved=0)
+
+
+[Radev, S. T., Mertens, U. K., Voss, A., Ardizzone, L., & Köthe, U. (2020). BayesFlow: Learning complex stochastic models with invertible neural networks. IEEE transactions on neural networks and learning systems, 33(4), 1452-1466.](https://nam02.safelinks.protection.outlook.com/?url=https%3A%2F%2Fieeexplore.ieee.org%2Fabstract%2Fdocument%2F9298920%3Fcasa_token%3DNXzFiO8sneoAAAAA%3A-TawPGyF2UhmdJ72nCavtBJ8NVcuJtZ7dALtm_WteHPp69od53k5Kq5MZyoOiZ_TgWroKmM&data=05%7C02%7Cabt7v%40missouri.edu%7C356f0a680e0f4875982a08de5e054c17%7Ce3fefdbef7e9401ba51a355e01b05a89%7C0%7C0%7C639051573990769789%7CUnknown%7CTWFpbGZsb3d8eyJFbXB0eU1hcGkiOnRydWUsIlYiOiIwLjAuMDAwMCIsIlAiOiJXaW4zMiIsIkFOIjoiTWFpbCIsIldUIjoyfQ%3D%3D%7C0%7C%7C%7C&sdata=ZLgDyiCwbF6aqtx2R5UcM6yFqCPOruC6ItmRgHh%2FHwQ%3D&reserved=0)
+
+
+[Ivan Kobyzev, Simon J.D. Prince, Marcus A. Brubaker (2019). Normalizing Flows: An Introduction and Review of Current Methods](https://arxiv.org/abs/1908.09257)
+
+
+
+
+
+
+---
 
 
 ##  {data-background-image="assets/tigerstripes.png" data-background-size="cover" data-background-position="center"}
