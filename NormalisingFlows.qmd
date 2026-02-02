@@ -82,20 +82,23 @@ resources:
 
 <div class="toc-card">
 
-1. [Motivation](#motivation)
-2. [Normalizing Flows](#NormFlows)  
-3. [Inference with Normalizing Flows](#InfNormFlow)  
-4. [Algorithm of Normalizing Flows](#AlgoNormFlows) 
-5. [Bayes Flow](#BFlowStart)  
-6. [Algorithm of Bayes Flow](#AlgoBayesFlow)
-7. [Recent Developments in Normalizing Flows](#DevelopNormFlow)
-8. [Summary of Normalizing Flow Families](#SummNormFlow)
-9. [Future Directions of Normalizing Flows](#FutureDir)
+1. [Introduction](#Introduction)
+2. [Motivation](#motivation)
+3. [Normalizing Flows](#NormFlows)  
+4. [Inference with Normalizing Flows](#InfNormFlow)  
+5. [Algorithm of Normalizing Flows](#AlgoNormFlows) 
+6. [Bayes Flow](#BFlowStart)  
+7. [Algorithm of Bayes Flow](#AlgoBayesFlow)
+8. [Recent Developments in Normalizing Flows](#DevelopNormFlow)
+9. [Summary of Normalizing Flow Families](#SummNormFlow)
+10. [Future Directions of Normalizing Flows](#FutureDir)
+11. [References](#References)
+
 
 </div>
 
 
-## Introduction 
+## Introduction {#Introduction}
 
 - Many real-world distributions are:
   - **non-Gaussian**, **skewed or heavy-tailed**, **multi-modal and correlated**
@@ -2462,7 +2465,7 @@ nf_methods_timeline = {
 
 ---
 
-## References
+## References {#References}
 
 <br>
 
