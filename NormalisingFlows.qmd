@@ -1487,10 +1487,8 @@ algo_diagram = {
 A key advantage of normalizing flows is that
 they add **minimal computational overhead**.
 
-- Jacobian determinant computed in **$O(D)$**
-- No matrix inverses required
-- Total cost scales **linearly in flow length** $K$
-- Compatible with minibatch SGD and backpropagation
+- Jacobian determinant computed in **$O(D)$** and total cost scales **linearly in flow length** $K$
+- No matrix inverses required and is compatible with minibatch SGD and backpropagation
 
 ---
 
