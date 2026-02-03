@@ -99,12 +99,9 @@ resources:
 
 
 ## Introduction {#Introduction}
-
-- Many real-world distributions are:
-  - **non-Gaussian**, **skewed or heavy-tailed**, **multi-modal and correlated**
+- Many real-world distributions are **non-Gaussian**, **skewed or heavy-tailed**, **multi-modal and correlated**
 - Classical models (Gaussian, mixtures) can be **too restrictive**
-- We want models that are:
-  - **Flexible**, **Exact likelihood**, **Efficient to train and sample**
+- We want models that are: **Flexible**, **Exact likelihood**, **Efficient to train and sample**
 
 
 ### Core Idea
@@ -368,7 +365,7 @@ flow_strip_anim = {
 ## Normalizing flows  {#NormFlows}
 
 
-<br>
+
 
 <div class="mizzou-gold-box">
 
@@ -379,7 +376,7 @@ By repeatedly applying the rule for change of variables, the initial density ‘
 
 </div>
 
-<br>
+
 
 ### Construction
 
@@ -430,10 +427,8 @@ $$
 ---
 
 ## Expectations under a flow (LOTUS)
-Let
-$$
-f:\mathbb{R}^d \to \mathbb{R}^d
-$$
+Let $f:\mathbb{R}^d \to \mathbb{R}^d$
+
 Then,
 $$
 z_K = f_K \circ f_{K-1} \circ \cdots \circ f_1(z_0),
@@ -538,14 +533,14 @@ flow_viz = {
 ```
 
 
-## Infinitestimal Flows
+## Infinitesimal Flows 
 
 We define the variational posterior as
 $$
 q_\phi(z \mid x) := q_K(z_K),
 $$
 
-where $f_k$ are the transformations.
+
 
 
 ### Key idea
@@ -567,7 +562,7 @@ where $\mathcal{T}_t$ defines continuous-time dynamics.
 
 ---
 
-## Infinitestimal Flows: A Demo
+## Infinitesimal Flows: A Demo
 
 ```{ojs}
 infinitesimal_flow_slider = {
@@ -1281,10 +1276,7 @@ where $u, w \in \mathbb{R}^d$, $b \in \mathbb{R}$ $\&$ $h(\cdot)$ is a smooth sc
 
 ### Jacobian determinant (planar flow)
 
-Define
-$$
-\psi(z) = h'(w^\top z + b)\, w.
-$$
+Define   $\psi(z) = h'(w^\top z + b)\, w.$
 
 Then the Jacobian determinant simplifies to:
 $$
@@ -1319,7 +1311,7 @@ z_K = f_K \circ \cdots \circ f_1(z_0),
 z_0 \sim q_0(z_0).
 $$
 
-<br>
+
 
 ### Free energy (ELBO)
 
@@ -1338,7 +1330,7 @@ $$
 \right].
 $$
 
-<br>
+
 
 ### Interpretation
 
@@ -2083,8 +2075,6 @@ bayesflow_algo_anim575 = {
 
 
 
-## Notation and setup
-
 ::: columns
 ::: column
 ### Normalizing Flows
@@ -2183,7 +2173,7 @@ $$
 - **MAF**: fast density evaluation  
 - **IAF**: fast sampling  
 
-<br> <br>
+
 
 ### Neural spline flows
 
@@ -2200,10 +2190,7 @@ without sacrificing invertibility.
 
 ## Continuous-Time Normalizing Flows
 
-Flows can be defined as **continuous dynamics**:
-$$
-\frac{dx(t)}{dt} = F(x(t), t)
-$$
+Flows can be defined as **continuous dynamics**: $\quad \quad \frac{dx(t)}{dt} = F(x(t), t)$
 
 Density evolves via:
 $$
@@ -2229,21 +2216,21 @@ $$
 
 | Flow family | Core transformation | Key idea | Strengths | Limitations |
 |------------|--------------------|----------|-----------|-------------|
-| Elementwise bijections | $$z_i = f_i(x_i)$$ | Independent nonlinear transforms | Simple, cheap Jacobian | No variable mixing |
-| Linear flows | $$z = Ax + b$$ | Global affine transform | Mixes variables, exact inverse | Limited expressiveness |
-| Planar flows | $$z = x + u\,h(w^\top x + b)$$ | Rank-1 nonlinear deformation | Flexible, fast Jacobian | Inverse often intractable |
-| Radial flows | $$z = x + \beta\,h(\alpha, r)(x - x_0)$$ | Radial contraction/expansion | Can induce multimodality | Hard inverse |
-| Coupling flows | $$z_{1:d}=x_{1:d}$$ $$z_{d+1:D}=x_{d+1:D}\odot e^{s(x_{1:d})}+t(x_{1:d})$$ | Split variables, conditional transforms | Exact inverse, scalable | Needs good coupling design |
+| Elementwise bijections | $z_i = f_i(x_i)$ | Independent nonlinear transforms | Simple, cheap Jacobian | No variable mixing |
+| Linear flows | $z = Ax + b$ | Global affine transform | Mixes variables, exact inverse | Limited expressiveness |
+| Planar flows | $z = x + u\,h(w^\top x + b)$ | Rank-1 nonlinear deformation | Flexible, fast Jacobian | Inverse often intractable |
+| Radial flows | $z = x + \beta\,h(\alpha, r)(x - x_0)$ | Radial contraction/expansion | Can induce multimodality | Hard inverse |
+| Coupling flows | $z_{1:d}=x_{1:d} \quad$ $z_{d+1:D}=x_{d+1:D}\odot e^{s(x_{1:d})}+t(x_{1:d})$ | Split variables, conditional transforms | Exact inverse, scalable | Needs good coupling design |
 
 
 ## Summary of Normalizing Flow Families (II)
-<br><br>
+<br>
 
 | Flow family | Core transformation | Key idea | Strengths | Limitations |
 |------------|--------------------|----------|-----------|-------------|
-| Autoregressive flows | $$z_i = f_i(x_i; x_{<i})$$ | Sequential conditional transforms | Highly expressive | Slow sampling or likelihood |
-| Residual flows | $$z = x + f(x)$$ | Invertible residual networks | Deep & flexible | Requires Lipschitz control |
-| Continuous (Neural ODE) flows | $$\frac{dz(t)}{dt} = f(z(t), t)$$ | Continuous-time transformation | Memory efficient, smooth | Expensive ODE solves |
+| Autoregressive flows | $z_i = f_i(x_i; x_{<i})$ | Sequential conditional transforms | Highly expressive | Slow sampling or likelihood |
+| Residual flows | $z = x + f(x)$ | Invertible residual networks | Deep & flexible | Requires Lipschitz control |
+| Continuous (Neural ODE) flows | $\frac{dz(t)}{dt} = f(z(t), t)$ | Continuous-time transformation | Memory efficient, smooth | Expensive ODE solves |
 
 ---
 
@@ -2455,8 +2442,6 @@ nf_methods_timeline = {
 -   **Efficiency & Scalability:** Reducing computational overhead for high-dimensional data (e.g., high-res images, 3D modeling).
 -   **Hybrid Architectures:** Combining flows with diffusion models or VAEs to leverage exact likelihoods and high-fidelity generation.
 -   **Beyond Gaussian Base:** Exploring more expressive, non-Gaussian, or learnable base distributions.
-
-<br>
 
 ### Key Research Areas
 1.  Riemannian Manifold Flows
